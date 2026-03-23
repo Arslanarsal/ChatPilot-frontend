@@ -1,17 +1,19 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import { useAuth } from '@/context/auth-context'
 import api from '@/lib/api'
+import { getAccessToken } from '@/lib/auth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { getErrorMessage } from '@/lib/error'
 
 export default function SettingsPage() {
-  const { user } = useAuth()
+  const { user, logout } = useAuth()
   const companyId = user?.company_id
   const [description, setDescription] = useState('')
   const [saving, setSaving] = useState(false)
@@ -19,12 +21,50 @@ export default function SettingsPage() {
   const [connectionStatus, setConnectionStatus] = useState<string | null>(null)
   const [showConnectDialog, setShowConnectDialog] = useState(false)
   const [connectMode, setConnectMode] = useState<'choose' | 'qr' | 'pairing'>('choose')
-  const [qrUrl, setQrUrl] = useState('')
+  const [qrBase64, setQrBase64] = useState<string | null>(null)
+  const [qrError, setQrError] = useState(false)
   const [pairingPhone, setPairingPhone] = useState('')
   const [pairingCode, setPairingCode] = useState('')
   const [loadingPairing, setLoadingPairing] = useState(false)
   const [disconnecting, setDisconnecting] = useState(false)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [deleteOtp, setDeleteOtp] = useState('')
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
+  const [otpSent, setOtpSent] = useState(false)
+  const [sendingOtp, setSendingOtp] = useState(false)
   const pollRef = useRef<ReturnType<typeof setInterval>>()
+
+  // Fetch QR code as blob and convert to base64 (Zonic-style)
+  const fetchQrCode = useCallback(async () => {
+    if (!companyId) return
+    try {
+      const token = getAccessToken()
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/companies/${companyId}/get_qr`,
+        { headers: token ? { Authorization: `Bearer ${token}` } : {} },
+      )
+      if (!response.ok) {
+        setQrError(true)
+        return
+      }
+      const contentType = response.headers.get('content-type') || ''
+      if (!contentType.includes('image')) {
+        // Backend returned JSON (no QR available), not an image
+        setQrError(true)
+        return
+      }
+      const blob = await response.blob()
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setQrBase64(reader.result as string)
+        setQrError(false)
+      }
+      reader.readAsDataURL(blob)
+    } catch {
+      setQrError(true)
+    }
+  }, [companyId])
 
   useEffect(() => {
     if (user?.company?.business_details?.description) {
@@ -48,6 +88,7 @@ export default function SettingsPage() {
     setSaving(true)
     try {
       await api.put(`/companies/${companyId}/business-details`, { description })
+      await api.post(`/companies/${companyId}/generate-prompt`)
       setSaved(true)
       setTimeout(() => setSaved(false), 3000)
     } catch { /* silent */ }
@@ -66,7 +107,8 @@ export default function SettingsPage() {
 
   const openConnectDialog = () => {
     setConnectMode('choose')
-    setQrUrl('')
+    setQrBase64(null)
+    setQrError(false)
     setPairingCode('')
     setPairingPhone('')
     setShowConnectDialog(true)
@@ -83,63 +125,47 @@ export default function SettingsPage() {
           if (pollRef.current) clearInterval(pollRef.current)
         }
       } catch { /* keep polling */ }
-    }, 5000)
+    }, 2000)
   }
 
   const startQrConnection = async () => {
     if (!companyId) return
     setConnectMode('qr')
+    setQrBase64(null)
+    setQrError(false)
     setConnectionStatus('Connecting...')
 
-    try {
-      const statusRes = await api.get(`/companies/${companyId}/connection_status`)
-      if (statusRes.data?.state === 'CONNECTED') {
-        setConnectionStatus('Connected')
-        setShowConnectDialog(false)
-        return
-      }
-    } catch { /* continue */ }
-
+    // Create session (removes old stale session first on backend)
     try {
       await api.post(`/companies/${companyId}/create_session`)
     } catch {
-      try {
-        const statusRes = await api.get(`/companies/${companyId}/connection_status`)
-        if (statusRes.data?.state === 'CONNECTED') {
-          setConnectionStatus('Connected')
-          setShowConnectDialog(false)
-          return
-        }
-      } catch { /* fall through */ }
+      // Session might already exist or WB temporarily down, continue anyway
     }
 
-    await new Promise(resolve => setTimeout(resolve, 3000))
+    // Wait for QR to be generated on WB
+    await new Promise(resolve => setTimeout(resolve, 1500))
 
-    try {
-      const statusRes = await api.get(`/companies/${companyId}/connection_status`)
-      if (statusRes.data?.state === 'CONNECTED') {
-        setConnectionStatus('Connected')
-        setShowConnectDialog(false)
-        return
-      }
-    } catch { /* not connected yet */ }
-
-    setQrUrl(`${process.env.NEXT_PUBLIC_API_URL}/companies/${companyId}/get_qr?t=${Date.now()}`)
+    // Fetch QR code as blob → base64
+    await fetchQrCode()
     setConnectionStatus('Disconnected')
 
+    // Poll every 2 seconds for connection + refresh QR every 10 seconds
     if (pollRef.current) clearInterval(pollRef.current)
+    let pollCount = 0
     pollRef.current = setInterval(async () => {
+      pollCount++
       try {
         const res = await api.get(`/companies/${companyId}/connection_status`)
         if (res.data?.state === 'CONNECTED') {
           setConnectionStatus('Connected')
           setShowConnectDialog(false)
           if (pollRef.current) clearInterval(pollRef.current)
-        } else {
-          setQrUrl(`${process.env.NEXT_PUBLIC_API_URL}/companies/${companyId}/get_qr?t=${Date.now()}`)
+        } else if (pollCount % 5 === 0) {
+          // Refresh QR every 10 seconds (5 polls * 2s)
+          await fetchQrCode()
         }
       } catch { /* keep polling */ }
-    }, 5000)
+    }, 2000)
   }
 
   const startPairingConnection = async () => {
@@ -163,6 +189,34 @@ export default function SettingsPage() {
       setConnectionStatus('Disconnected')
     } finally {
       setLoadingPairing(false)
+    }
+  }
+
+  const handleSendDeleteOtp = async () => {
+    if (!companyId) return
+    setSendingOtp(true)
+    setDeleteError('')
+    try {
+      await api.post(`/companies/${companyId}/send-delete-otp`)
+      setOtpSent(true)
+    } catch (err) {
+      setDeleteError(getErrorMessage(err, 'Failed to send OTP. Please try again.'))
+    } finally {
+      setSendingOtp(false)
+    }
+  }
+
+  const handleDeleteCompany = async () => {
+    if (!companyId || !deleteOtp.trim()) return
+    setDeleting(true)
+    setDeleteError('')
+    try {
+      await api.delete(`/companies/${companyId}`, { data: { otp: deleteOtp } })
+      logout()
+    } catch (err) {
+      setDeleteError(getErrorMessage(err, 'Failed to delete company. Please try again.'))
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -304,6 +358,121 @@ export default function SettingsPage() {
         </div>
       </motion.div>
 
+      {/* Danger Zone */}
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
+        className="bg-white rounded-2xl border border-red-200/60 shadow-sm overflow-hidden"
+      >
+        <div className="p-5 border-b border-red-100 flex items-center gap-3">
+          <div className="h-9 w-9 rounded-lg bg-red-50 flex items-center justify-center">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgb(239,68,68)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
+          </div>
+          <div>
+            <h3 className="font-semibold text-red-600 text-sm">Danger Zone</h3>
+            <p className="text-xs text-muted-foreground">Irreversible actions</p>
+          </div>
+        </div>
+        <div className="p-5">
+          <p className="text-sm text-muted-foreground mb-4">
+            Deleting your company will permanently remove all data including contacts, messages, users, and WhatsApp connection. This action cannot be undone.
+          </p>
+          <Button
+            onClick={() => { setShowDeleteDialog(true); setDeleteOtp(''); setDeleteError(''); setOtpSent(false) }}
+            variant="destructive"
+            className="rounded-xl h-9 text-sm px-5"
+          >
+            Delete Company
+          </Button>
+        </div>
+      </motion.div>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent className="sm:max-w-md rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-center text-red-600">Delete Company</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <p className="text-sm text-muted-foreground text-center">
+              This will permanently delete <strong>{user?.company_name || 'your company'}</strong> and all associated data:
+            </p>
+            <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
+              <li>All contacts and their messages</li>
+              <li>WhatsApp connection and session</li>
+              <li>AI assistant configuration</li>
+              <li>All user accounts</li>
+            </ul>
+            {!otpSent ? (
+              <>
+                <p className="text-sm text-muted-foreground text-center">
+                  We will send a verification code to your WhatsApp to confirm deletion.
+                </p>
+                {deleteError && (
+                  <p className="text-sm text-red-600 text-center">{deleteError}</p>
+                )}
+                <div className="flex gap-3">
+                  <Button
+                    onClick={() => setShowDeleteDialog(false)}
+                    variant="outline"
+                    className="flex-1 rounded-xl h-11"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleSendDeleteOtp}
+                    variant="destructive"
+                    disabled={sendingOtp}
+                    className="flex-1 rounded-xl h-11"
+                  >
+                    {sendingOtp ? 'Sending OTP...' : 'Send Verification Code'}
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Enter the OTP sent to your WhatsApp</Label>
+                  <Input
+                    placeholder="Enter 6-digit code"
+                    value={deleteOtp}
+                    onChange={e => setDeleteOtp(e.target.value)}
+                    maxLength={6}
+                    className="h-11 rounded-xl bg-white border-slate-200 focus:border-red-500 focus:ring-red-500/20 text-center text-lg tracking-widest font-mono"
+                  />
+                </div>
+                {deleteError && (
+                  <p className="text-sm text-red-600 text-center">{deleteError}</p>
+                )}
+                <div className="flex gap-3">
+                  <Button
+                    onClick={() => setShowDeleteDialog(false)}
+                    variant="outline"
+                    className="flex-1 rounded-xl h-11"
+                    disabled={deleting}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleDeleteCompany}
+                    variant="destructive"
+                    disabled={deleting || !deleteOtp.trim()}
+                    className="flex-1 rounded-xl h-11"
+                  >
+                    {deleting ? 'Deleting...' : 'Verify & Delete'}
+                  </Button>
+                </div>
+                <button
+                  onClick={handleSendDeleteOtp}
+                  disabled={sendingOtp}
+                  className="w-full text-sm text-red-600 hover:text-red-700 font-medium transition-colors text-center"
+                >
+                  {sendingOtp ? 'Sending...' : 'Resend OTP'}
+                </button>
+              </>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Connect Dialog */}
       <Dialog open={showConnectDialog} onOpenChange={(open) => {
         setShowConnectDialog(open)
@@ -351,10 +520,21 @@ export default function SettingsPage() {
           {connectMode === 'qr' && (
             <div className="text-center space-y-4 py-4">
               <p className="text-sm text-muted-foreground">Open WhatsApp on your phone and scan this QR code to connect</p>
-              {qrUrl ? (
+              {qrError ? (
+                <div className="rounded-xl border border-red-200 bg-red-50 p-8">
+                  <p className="text-sm text-red-600 mb-3">Failed to load QR code</p>
+                  <Button
+                    onClick={async () => { setQrError(false); await fetchQrCode() }}
+                    variant="outline"
+                    className="rounded-xl border-red-200 text-red-600 hover:bg-red-100 text-sm h-9"
+                  >
+                    Try Again
+                  </Button>
+                </div>
+              ) : qrBase64 ? (
                 <div className="inline-block p-4 bg-white rounded-2xl border-2 border-dashed border-emerald-200 shadow-sm">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={qrUrl} alt="WhatsApp QR Code" className="h-56 w-56" />
+                  <img src={qrBase64} alt="WhatsApp QR Code" className="w-full max-w-[224px] rounded-lg" />
                 </div>
               ) : (
                 <div className="h-64 flex items-center justify-center">
@@ -373,7 +553,7 @@ export default function SettingsPage() {
                 Waiting for connection...
               </div>
               <button
-                onClick={() => { setConnectMode('pairing'); setQrUrl(''); if (pollRef.current) clearInterval(pollRef.current) }}
+                onClick={() => { setConnectMode('pairing'); setQrBase64(null); setQrError(false); if (pollRef.current) clearInterval(pollRef.current) }}
                 className="text-sm text-emerald-600 hover:text-emerald-700 font-medium transition-colors"
               >
                 QR not working? Try pairing code
