@@ -12,6 +12,15 @@ import { Textarea } from '@/components/ui/textarea'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { getErrorMessage } from '@/lib/error'
 
+type CompanyAsset = {
+  id: number
+  file_url: string
+  file_type: string
+  file_name: string
+  description: string | null
+  created_at: string
+}
+
 export default function SettingsPage() {
   const { user, logout } = useAuth()
   const companyId = user?.company_id
@@ -34,6 +43,14 @@ export default function SettingsPage() {
   const [otpSent, setOtpSent] = useState(false)
   const [sendingOtp, setSendingOtp] = useState(false)
   const pollRef = useRef<ReturnType<typeof setInterval>>()
+
+  // ─── Company Assets State ──────────────────────────────
+  const [assets, setAssets] = useState<CompanyAsset[]>([])
+  const [uploading, setUploading] = useState(false)
+  const [assetDescription, setAssetDescription] = useState('')
+  const [deletingAssetId, setDeletingAssetId] = useState<number | null>(null)
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Fetch QR code as blob and convert to base64 (Zonic-style)
   const fetchQrCode = useCallback(async () => {
@@ -79,9 +96,70 @@ export default function SettingsPage() {
       .catch(() => setConnectionStatus('Disconnected'))
   }, [companyId])
 
+  // Fetch company assets
+  useEffect(() => {
+    if (!companyId) return
+    api.get(`/companies/${companyId}/assets`)
+      .then(res => setAssets(Array.isArray(res.data) ? res.data : []))
+      .catch(() => {})
+  }, [companyId])
+
   useEffect(() => {
     return () => { if (pollRef.current) clearInterval(pollRef.current) }
   }, [])
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) setSelectedFile(file)
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  const handleUploadConfirm = async () => {
+    if (!selectedFile || !companyId) return
+
+    setUploading(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', selectedFile)
+      if (assetDescription.trim()) {
+        formData.append('description', assetDescription.trim())
+      }
+
+      const res = await api.post(`/companies/${companyId}/assets/upload`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+
+      setAssets(prev => [res.data, ...prev])
+      setAssetDescription('')
+      setSelectedFile(null)
+    } catch { /* silent */ }
+    finally { setUploading(false) }
+  }
+
+  const deleteAsset = async (assetId: number) => {
+    if (!companyId) return
+    setDeletingAssetId(assetId)
+    try {
+      await api.delete(`/companies/${companyId}/assets/${assetId}`)
+      setAssets(prev => prev.filter(a => a.id !== assetId))
+    } catch { /* silent */ }
+    finally { setDeletingAssetId(null) }
+  }
+
+  const getFileIcon = (type: string) => {
+    if (type === 'image') return (
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+    )
+    if (type === 'pdf') return (
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
+    )
+    if (type === 'video') return (
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m22 8-6 4 6 4V8Z"/><rect width="14" height="12" x="2" y="6" rx="2" ry="2"/></svg>
+    )
+    return (
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
+    )
+  }
 
   const saveDetails = async () => {
     if (!companyId) return
@@ -263,6 +341,141 @@ export default function SettingsPage() {
               </span>
             ) : 'Save Description'}
           </Button>
+        </div>
+      </motion.div>
+
+      {/* Company Files & Media */}
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
+        className="bg-white rounded-2xl border border-slate-200/60 shadow-sm overflow-hidden"
+      >
+        <div className="p-5 border-b border-slate-100 flex items-center gap-3">
+          <div className="h-9 w-9 rounded-lg bg-purple-50 flex items-center justify-center">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgb(147,51,234)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
+          </div>
+          <div>
+            <h3 className="font-semibold text-foreground text-sm">Company Files & Media</h3>
+            <p className="text-xs text-muted-foreground">Upload images, PDFs, or documents for your AI to share with clients</p>
+          </div>
+        </div>
+        <div className="p-5 space-y-4">
+          {/* Upload Form */}
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">File Description</Label>
+              <Input
+                value={assetDescription}
+                onChange={e => setAssetDescription(e.target.value)}
+                placeholder="e.g., Restaurant menu, Price list, Product catalog..."
+                className="h-10 rounded-xl bg-white border-slate-200 focus:border-purple-500 focus:ring-purple-500/20 text-sm"
+              />
+              <p className="text-xs text-muted-foreground">Describe the file so the AI knows when to send it to clients.</p>
+            </div>
+            <div className="space-y-3">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,video/*"
+                onChange={handleFileSelect}
+                className="hidden"
+              />
+              <Button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                variant="outline"
+                className="w-full h-10 rounded-xl border-slate-200 hover:border-purple-300 hover:bg-purple-50 text-sm font-medium"
+              >
+                <span className="flex items-center gap-1.5">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
+                  {selectedFile ? selectedFile.name : 'Choose File'}
+                </span>
+              </Button>
+              {selectedFile && (
+                <div className="flex items-center gap-2 p-2.5 rounded-xl bg-purple-50 border border-purple-100">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-purple-900 truncate">{selectedFile.name}</p>
+                    <p className="text-xs text-purple-600">{(selectedFile.size / 1024).toFixed(1)} KB</p>
+                  </div>
+                  <button
+                    onClick={() => setSelectedFile(null)}
+                    className="shrink-0 h-7 w-7 rounded-lg flex items-center justify-center text-purple-400 hover:text-red-500 hover:bg-white transition-colors"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" x2="6" y1="6" y2="18"/><line x1="6" x2="18" y1="6" y2="18"/></svg>
+                  </button>
+                </div>
+              )}
+              <Button
+                onClick={handleUploadConfirm}
+                disabled={uploading || !selectedFile}
+                className="w-full h-10 rounded-xl bg-purple-600 hover:bg-purple-700 text-white shadow-sm font-medium text-sm disabled:opacity-50"
+              >
+                {uploading ? (
+                  <span className="flex items-center gap-2">
+                    <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                    Uploading...
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1.5">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
+                    Upload File
+                  </span>
+                )}
+              </Button>
+            </div>
+          </div>
+
+          {/* Assets List */}
+          {assets.length > 0 && (
+            <div className="space-y-2">
+              <Label className="text-sm font-medium text-muted-foreground">Uploaded Files ({assets.length})</Label>
+              <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                {assets.map(asset => (
+                  <div key={asset.id} className="flex items-center gap-3 p-3 rounded-xl border border-slate-100 bg-slate-50/50 group hover:border-slate-200 transition-colors">
+                    <div className={`h-8 w-8 rounded-lg flex items-center justify-center shrink-0 ${
+                      asset.file_type === 'image' ? 'bg-blue-100 text-blue-600' :
+                      asset.file_type === 'pdf' ? 'bg-red-100 text-red-600' :
+                      asset.file_type === 'video' ? 'bg-orange-100 text-orange-600' :
+                      'bg-slate-100 text-slate-600'
+                    }`}>
+                      {getFileIcon(asset.file_type)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">
+                        {asset.description || asset.file_name}
+                      </p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {asset.file_name} &middot; {asset.file_type.toUpperCase()}
+                      </p>
+                    </div>
+                    {asset.file_type === 'image' && (
+                      <a href={asset.file_url} target="_blank" rel="noopener noreferrer" className="shrink-0">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={asset.file_url} alt={asset.description || asset.file_name} className="h-10 w-10 rounded-lg object-cover border border-slate-200" />
+                      </a>
+                    )}
+                    <button
+                      onClick={() => deleteAsset(asset.id)}
+                      disabled={deletingAssetId === asset.id}
+                      className="shrink-0 h-8 w-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
+                    >
+                      {deletingAssetId === asset.id ? (
+                        <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                      ) : (
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                      )}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {assets.length === 0 && (
+            <div className="text-center py-6 text-muted-foreground">
+              <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="mx-auto mb-2 opacity-40"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
+              <p className="text-sm">No files uploaded yet</p>
+              <p className="text-xs mt-1">Upload menus, price lists, catalogs, or any files your AI should share with clients</p>
+            </div>
+          )}
         </div>
       </motion.div>
 
