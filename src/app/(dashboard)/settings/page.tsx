@@ -44,7 +44,6 @@ export default function SettingsPage() {
   const [sendingOtp, setSendingOtp] = useState(false)
   const pollRef = useRef<ReturnType<typeof setInterval>>()
 
-  // ─── Company Assets State ──────────────────────────────
   const [assets, setAssets] = useState<CompanyAsset[]>([])
   const [uploading, setUploading] = useState(false)
   const [assetDescription, setAssetDescription] = useState('')
@@ -52,7 +51,6 @@ export default function SettingsPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Fetch QR code as blob and convert to base64 (Zonic-style)
   const fetchQrCode = useCallback(async () => {
     if (!companyId) return
     try {
@@ -67,7 +65,6 @@ export default function SettingsPage() {
       }
       const contentType = response.headers.get('content-type') || ''
       if (!contentType.includes('image')) {
-        // Backend returned JSON (no QR available), not an image
         setQrError(true)
         return
       }
@@ -96,7 +93,6 @@ export default function SettingsPage() {
       .catch(() => setConnectionStatus('Disconnected'))
   }, [companyId])
 
-  // Fetch company assets
   useEffect(() => {
     if (!companyId) return
     api.get(`/companies/${companyId}/assets`)
@@ -213,21 +209,16 @@ export default function SettingsPage() {
     setQrError(false)
     setConnectionStatus('Connecting...')
 
-    // Create session (removes old stale session first on backend)
     try {
       await api.post(`/companies/${companyId}/create_session`)
     } catch {
-      // Session might already exist or WB temporarily down, continue anyway
     }
 
-    // Wait for QR to be generated on WB
     await new Promise(resolve => setTimeout(resolve, 1500))
 
-    // Fetch QR code as blob → base64
     await fetchQrCode()
     setConnectionStatus('Disconnected')
 
-    // Poll every 2 seconds for connection + refresh QR every 10 seconds
     if (pollRef.current) clearInterval(pollRef.current)
     let pollCount = 0
     pollRef.current = setInterval(async () => {
@@ -239,7 +230,6 @@ export default function SettingsPage() {
           setShowConnectDialog(false)
           if (pollRef.current) clearInterval(pollRef.current)
         } else if (pollCount % 5 === 0) {
-          // Refresh QR every 10 seconds (5 polls * 2s)
           await fetchQrCode()
         }
       } catch { /* keep polling */ }
@@ -305,7 +295,6 @@ export default function SettingsPage() {
         <p className="text-muted-foreground mt-1 text-sm">Manage your business and WhatsApp</p>
       </motion.div>
 
-      {/* Business Description */}
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
         className="bg-white rounded-2xl border border-slate-200/60 shadow-sm overflow-hidden"
       >
@@ -344,7 +333,6 @@ export default function SettingsPage() {
         </div>
       </motion.div>
 
-      {/* Company Files & Media */}
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
         className="bg-white rounded-2xl border border-slate-200/60 shadow-sm overflow-hidden"
       >
@@ -358,7 +346,6 @@ export default function SettingsPage() {
           </div>
         </div>
         <div className="p-5 space-y-4">
-          {/* Upload Form */}
           <div className="space-y-3">
             <div className="space-y-2">
               <Label className="text-sm font-medium">File Description</Label>
@@ -423,7 +410,6 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          {/* Assets List */}
           {assets.length > 0 && (
             <div className="space-y-2">
               <Label className="text-sm font-medium text-muted-foreground">Uploaded Files ({assets.length})</Label>
@@ -479,7 +465,6 @@ export default function SettingsPage() {
         </div>
       </motion.div>
 
-      {/* WhatsApp Connection */}
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
         className="bg-white rounded-2xl border border-slate-200/60 shadow-sm overflow-hidden"
       >
@@ -516,7 +501,6 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          {/* Action buttons */}
           <div className="mt-4 flex gap-3">
             {connectionStatus === 'Connected' ? (
               <Button
@@ -571,7 +555,6 @@ export default function SettingsPage() {
         </div>
       </motion.div>
 
-      {/* Danger Zone */}
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
         className="bg-white rounded-2xl border border-red-200/60 shadow-sm overflow-hidden"
       >
@@ -598,7 +581,6 @@ export default function SettingsPage() {
         </div>
       </motion.div>
 
-      {/* Delete Confirmation Dialog */}
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <DialogContent className="sm:max-w-md rounded-2xl">
           <DialogHeader>
@@ -686,7 +668,6 @@ export default function SettingsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Connect Dialog */}
       <Dialog open={showConnectDialog} onOpenChange={(open) => {
         setShowConnectDialog(open)
         if (!open && pollRef.current) clearInterval(pollRef.current)
@@ -698,7 +679,6 @@ export default function SettingsPage() {
             </DialogTitle>
           </DialogHeader>
 
-          {/* Choose mode */}
           {connectMode === 'choose' && (
             <div className="space-y-3 py-4">
               <p className="text-sm text-muted-foreground text-center mb-4">Choose how to connect your WhatsApp</p>
@@ -729,7 +709,6 @@ export default function SettingsPage() {
             </div>
           )}
 
-          {/* QR mode */}
           {connectMode === 'qr' && (
             <div className="text-center space-y-4 py-4">
               <p className="text-sm text-muted-foreground">Open WhatsApp on your phone and scan this QR code to connect</p>
@@ -774,7 +753,6 @@ export default function SettingsPage() {
             </div>
           )}
 
-          {/* Pairing mode */}
           {connectMode === 'pairing' && (
             <div className="space-y-4 py-4">
               {!pairingCode ? (

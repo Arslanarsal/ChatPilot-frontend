@@ -70,7 +70,6 @@ function SidebarContent() {
 
   return (
     <>
-      {/* Logo */}
       <div className="flex h-16 items-center gap-3 px-6 border-b border-slate-200/60">
         <div className="h-9 w-9 rounded-xl gradient-primary flex items-center justify-center shadow-sm">
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
@@ -78,7 +77,6 @@ function SidebarContent() {
         <span className="text-xl font-bold text-gradient">ChatPilot</span>
       </div>
 
-      {/* Nav */}
       <nav className="flex-1 space-y-1 p-4">
         {navItems.map(item => {
           const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
@@ -109,7 +107,6 @@ function SidebarContent() {
         })}
       </nav>
 
-      {/* Bottom card */}
       <div className="p-4">
         <div className="rounded-2xl bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-100/50 p-4">
           <div className="flex items-center gap-2 mb-2">
@@ -132,12 +129,10 @@ export function Sidebar() {
 
   return (
     <>
-      {/* Desktop sidebar */}
       <aside className="hidden w-72 border-r border-slate-200/60 bg-white/50 backdrop-blur-xl md:flex md:flex-col">
         <SidebarContent />
       </aside>
 
-      {/* Mobile sidebar overlay */}
       <AnimatePresence>
         {open && (
           <>

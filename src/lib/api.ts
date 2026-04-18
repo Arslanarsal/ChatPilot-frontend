@@ -25,7 +25,6 @@ api.interceptors.response.use(
     const originalRequest = error.config
     const url = originalRequest?.url || ''
 
-    // Skip token refresh for auth endpoints — let the page handle the error directly
     const isAuthEndpoint = url.includes('/auth/login') ||
       url.includes('/auth/signup') ||
       url.includes('/auth/forgot-password') ||
