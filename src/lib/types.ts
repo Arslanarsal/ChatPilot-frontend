@@ -32,8 +32,15 @@ export interface Contact {
   name: string | null
   phone: number | null
   whatsapp_profile_name: string | null
+  photo_url: string | null
   total_messages: number
   is_bot_activated: boolean | null
+  is_replies_activated: boolean | null
+  is_follow_up_sent: boolean
+  needs_review: boolean
+  contact_stop_date: string | null
+  crm_appointment_id: string | null
+  crm_appointment_at: string | null
   last_message_received: string
   messages?: Message[]
 }
