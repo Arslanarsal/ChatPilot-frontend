@@ -8,6 +8,7 @@ import { getErrorMessage } from '@/lib/error'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { PasswordInput } from '@/components/ui/password-input'
 
 export default function LoginPage() {
   const { login } = useAuth()
@@ -31,17 +32,19 @@ export default function LoginPage() {
 
   return (
     <div>
-      {/* Mobile logo */}
-      <div className="lg:hidden flex items-center gap-3 mb-8">
-        <div className="h-10 w-10 rounded-xl gradient-primary flex items-center justify-center shadow-glow">
-          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      <div className="mb-8 flex items-center gap-3 lg:hidden">
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl gradient-primary shadow-glow">
+          <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" className="h-5 w-5">
+            <path d="M3 12a9 9 0 1 0 3.2-6.9L3 8" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M3 3v5h5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
         </div>
-        <span className="text-2xl font-bold text-gradient">ChatPilot</span>
+        <span className="text-2xl font-bold text-slate-900">ChatPilot</span>
       </div>
 
       <div className="mb-8">
-        <h2 className="text-3xl font-bold text-foreground mb-2">Welcome back</h2>
-        <p className="text-muted-foreground">Sign in to your account to continue</p>
+        <h2 className="text-3xl font-bold tracking-tight text-slate-900">Welcome back</h2>
+        <p className="mt-2 text-slate-600">Sign in to pick up where you left off.</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-5">
@@ -80,20 +83,14 @@ export default function LoginPage() {
               Forgot password?
             </Link>
           </div>
-          <div className="relative">
-            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-            </div>
-            <Input
-              id="password"
-              type="password"
-              placeholder="Enter your password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              required
-              className="pl-11 h-12 rounded-xl bg-white border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20 transition-all"
-            />
-          </div>
+          <PasswordInput
+            id="password"
+            placeholder="Enter your password"
+            value={password}
+            onChange={e => setPassword(e.target.value)}
+            required
+            className="h-12 rounded-xl bg-white border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20 transition-all"
+          />
         </div>
 
         <Button

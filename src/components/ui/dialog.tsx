@@ -3,9 +3,6 @@
 import * as React from "react"
 import { cn } from "@/lib/utils"
 
-// Simplified dialog without radix dependency
-// Uses native HTML dialog element
-
 interface DialogContextType {
   open: boolean
   onOpenChange: (open: boolean) => void

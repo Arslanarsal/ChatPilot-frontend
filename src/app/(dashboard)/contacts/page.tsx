@@ -74,7 +74,6 @@ export default function ContactsPage() {
         </div>
       </div>
 
-      {/* Search */}
       <div className="relative max-w-md">
         <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground">
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
@@ -87,7 +86,6 @@ export default function ContactsPage() {
         />
       </div>
 
-      {/* Contact cards */}
       {contacts ? (
         <>
           <div className="space-y-2">
@@ -100,12 +98,10 @@ export default function ContactsPage() {
                 onClick={() => router.push(`/contacts/${contact.id}`)}
                 className="group flex items-center gap-4 bg-white rounded-xl border border-slate-200/60 p-4 cursor-pointer hover:shadow-md hover:border-emerald-200/50 transition-all duration-200"
               >
-                {/* Avatar */}
                 <div className="h-12 w-12 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white font-bold text-lg shrink-0 shadow-sm">
                   {(contact.name || contact.whatsapp_profile_name || '?')[0]?.toUpperCase()}
                 </div>
 
-                {/* Info */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between mb-1">
                     <h4 className="font-semibold text-foreground truncate">{displayName(contact)}</h4>
@@ -136,7 +132,6 @@ export default function ContactsPage() {
                   </div>
                 </div>
 
-                {/* Arrow */}
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-300 group-hover:text-emerald-500 transition-colors shrink-0"><path d="m9 18 6-6-6-6"/></svg>
               </motion.div>
             ))}

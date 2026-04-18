@@ -25,7 +25,6 @@ export default function SetupPage() {
   const [generating, setGenerating] = useState(false)
   const [saving, setSaving] = useState(false)
 
-  // Step 3 - Connection
   const [connectionMode, setConnectionMode] = useState<'choose' | 'qr' | 'pairing'>('choose')
   const [qrUrl, setQrUrl] = useState('')
   const [connected, setConnected] = useState(false)
@@ -146,7 +145,6 @@ export default function SetupPage() {
         <p className="text-muted-foreground mt-1 text-sm">Configure your AI assistant in 3 easy steps</p>
       </motion.div>
 
-      {/* Steps indicator */}
       <div className="flex items-center gap-0">
         {steps.map((s, i) => (
           <div key={s.num} className="flex items-center flex-1">
@@ -176,7 +174,6 @@ export default function SetupPage() {
       </div>
 
       <AnimatePresence mode="wait">
-        {/* STEP 1 - Business Description */}
         {step === 1 && (
           <motion.div key="step1" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }}
             className="bg-white rounded-2xl border border-slate-200/60 shadow-sm p-6"
@@ -203,7 +200,6 @@ export default function SetupPage() {
           </motion.div>
         )}
 
-        {/* STEP 2 - AI Configuration (simplified: no prompt display) */}
         {step === 2 && (
           <motion.div key="step2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }}
             className="bg-white rounded-2xl border border-slate-200/60 shadow-sm p-6"
@@ -248,7 +244,6 @@ export default function SetupPage() {
           </motion.div>
         )}
 
-        {/* STEP 3 - WhatsApp Connection (QR + Pairing Code) */}
         {step === 3 && (
           <motion.div key="step3" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }}
             className="bg-white rounded-2xl border border-slate-200/60 shadow-sm p-6"

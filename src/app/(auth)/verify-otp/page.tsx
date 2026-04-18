@@ -45,7 +45,6 @@ export default function VerifyOtpPage() {
       inputRefs.current[index + 1]?.focus()
     }
 
-    // Auto-submit when all 6 digits entered
     if (digit && index === 5 && newOtp.every(d => d)) {
       handleSubmit(newOtp.join(''))
     }
@@ -104,7 +103,6 @@ export default function VerifyOtpPage() {
 
   return (
     <div>
-      {/* Mobile logo */}
       <div className="lg:hidden flex items-center gap-3 mb-8">
         <div className="h-10 w-10 rounded-xl gradient-primary flex items-center justify-center shadow-glow">
           <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
@@ -117,6 +115,7 @@ export default function VerifyOtpPage() {
         <p className="text-muted-foreground">
           Enter the 6-digit code sent to your WhatsApp
           <span className="block text-foreground font-medium mt-1">+{phone}</span>
+          <span className="mt-2 block text-xs text-amber-600 font-medium">Code expires in 1 minute</span>
         </p>
       </div>
 
@@ -132,7 +131,6 @@ export default function VerifyOtpPage() {
           </motion.div>
         )}
 
-        {/* OTP Input Grid */}
         <div className="flex justify-center gap-3" onPaste={handlePaste}>
           {otp.map((digit, index) => (
             <motion.input

@@ -12,16 +12,13 @@ export function getErrorMessage(err: unknown, fallback = 'Something went wrong. 
     }
   }
 
-  // NestJS returns { statusCode, message, error } where message is the actual error text
   const data = error.response?.data
 
-  // Try data.message first (NestJS standard format)
   let message: string | undefined
   if (data?.message) {
     message = Array.isArray(data.message) ? data.message[0] : data.message
   }
 
-  // Fallback: try data.error.message (nested format some APIs use)
   if (!message && data?.error && typeof data.error === 'object') {
     const nested = data.error.message
     message = Array.isArray(nested) ? nested[0] : nested
@@ -31,7 +28,6 @@ export function getErrorMessage(err: unknown, fallback = 'Something went wrong. 
     message = fallback
   }
 
-  // Filter out raw technical/database errors that should never reach users
   const lower = message.toLowerCase()
   if (
     lower.includes('does not exist in the current database') ||

@@ -5,9 +5,12 @@ import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { useAuth } from '@/context/auth-context'
 import { getErrorMessage } from '@/lib/error'
+import { isStrongPassword } from '@/lib/password'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { PasswordInput } from '@/components/ui/password-input'
+import { PasswordStrength } from '@/components/auth/password-strength'
 
 export default function SignupPage() {
   const { signup } = useAuth()
@@ -22,12 +25,12 @@ export default function SignupPage() {
     e.preventDefault()
     setError('')
 
-    if (password !== confirmPassword) {
-      setError('Passwords do not match')
+    if (!isStrongPassword(password)) {
+      setError('Password must contain 8+ characters with uppercase, lowercase, number, and special character')
       return
     }
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters')
+    if (password !== confirmPassword) {
+      setError('Passwords do not match')
       return
     }
 
@@ -43,16 +46,19 @@ export default function SignupPage() {
 
   return (
     <div>
-      <div className="lg:hidden flex items-center gap-3 mb-8">
-        <div className="h-10 w-10 rounded-xl gradient-primary flex items-center justify-center shadow-glow">
-          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      <div className="mb-8 flex items-center gap-3 lg:hidden">
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl gradient-primary shadow-glow">
+          <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" className="h-5 w-5">
+            <path d="M3 12a9 9 0 1 0 3.2-6.9L3 8" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M3 3v5h5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
         </div>
-        <span className="text-2xl font-bold text-gradient">ChatPilot</span>
+        <span className="text-2xl font-bold text-slate-900">ChatPilot</span>
       </div>
 
       <div className="mb-8">
-        <h2 className="text-3xl font-bold text-foreground mb-2">Get started</h2>
-        <p className="text-muted-foreground">Create your account and start automating</p>
+        <h2 className="text-3xl font-bold tracking-tight text-slate-900">Start free in 3 minutes</h2>
+        <p className="mt-2 text-slate-600">No credit card. Cancel anytime.</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -87,15 +93,34 @@ export default function SignupPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-2">
-            <Label htmlFor="password" className="text-sm font-medium">Password</Label>
-            <Input id="password" type="password" placeholder="Min 6 chars" value={password} onChange={e => setPassword(e.target.value)} required className="h-12 rounded-xl bg-white border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20" />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="confirmPassword" className="text-sm font-medium">Confirm</Label>
-            <Input id="confirmPassword" type="password" placeholder="Re-enter" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required className="h-12 rounded-xl bg-white border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20" />
-          </div>
+        <div className="space-y-2">
+          <Label htmlFor="password" className="text-sm font-medium">Password</Label>
+          <PasswordInput
+            id="password"
+            placeholder="Create a strong password"
+            value={password}
+            onChange={e => setPassword(e.target.value)}
+            onSuggest={pw => { setPassword(pw); setConfirmPassword(pw) }}
+            suggest
+            required
+            className="h-12 rounded-xl bg-white border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20"
+          />
+          <PasswordStrength value={password} />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="confirmPassword" className="text-sm font-medium">Confirm password</Label>
+          <PasswordInput
+            id="confirmPassword"
+            placeholder="Re-enter password"
+            value={confirmPassword}
+            onChange={e => setConfirmPassword(e.target.value)}
+            required
+            className="h-12 rounded-xl bg-white border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20"
+          />
+          {confirmPassword && password && confirmPassword !== password && (
+            <p className="text-xs text-red-600">Passwords don&apos;t match</p>
+          )}
         </div>
 
         <Button
