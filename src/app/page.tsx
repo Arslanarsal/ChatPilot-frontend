@@ -120,38 +120,6 @@ const steps = [
   { title: "Go live", description: "Customers message you as usual. Your AI handles the rest." },
 ]
 
-const pricingTiers = [
-  {
-    name: "Starter",
-    price: "Free",
-    description: "Perfect to test the waters.",
-    features: ["1 WhatsApp number", "200 AI replies / month", "1 team member"],
-    cta: "Start free",
-  },
-  {
-    name: "Pro",
-    price: "Rs. 3,500",
-    suffix: "/month",
-    description: "For growing service businesses.",
-    features: [
-      "1 WhatsApp number",
-      "Unlimited AI replies",
-      "Appointment booking",
-      "File attachments",
-      "Priority support",
-    ],
-    cta: "Start Pro trial",
-    highlight: true,
-  },
-  {
-    name: "Business",
-    price: "Custom",
-    description: "Multiple numbers, team seats, SSO.",
-    features: ["Multiple WhatsApp numbers", "Team seats", "Custom integrations", "SLA & dedicated support"],
-    cta: "Talk to sales",
-  },
-]
-
 const faqItems = [
   {
     q: "Will my customers know they're talking to a bot?",
@@ -330,69 +298,6 @@ export default function LandingPage() {
       </Section>
 
       <Section className="bg-slate-50/80">
-        <SectionHeading
-          eyebrow="Pricing"
-          title="Start free. Upgrade when you grow."
-          subtitle="Simple tiers. No per-message fees. No surprises."
-        />
-        <div className="grid gap-6 md:grid-cols-3">
-          {pricingTiers.map((t) => (
-            <div
-              key={t.name}
-              className={
-                t.highlight
-                  ? "relative rounded-3xl border-2 border-emerald-500 bg-white p-8 shadow-glow-lg"
-                  : "rounded-3xl border border-slate-200 bg-white p-8"
-              }
-            >
-              {t.highlight && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-emerald-500 px-3 py-1 text-xs font-semibold text-white">
-                  Most popular
-                </div>
-              )}
-              <h3 className="text-xl font-semibold text-slate-900">{t.name}</h3>
-              <div className="mt-3 flex items-baseline gap-1">
-                <span className="text-4xl font-bold text-slate-900">{t.price}</span>
-                {t.suffix && <span className="text-sm text-slate-500">{t.suffix}</span>}
-              </div>
-              <p className="mt-2 text-sm text-slate-600">{t.description}</p>
-              <Link
-                href="/signup"
-                className={
-                  t.highlight
-                    ? "mt-6 inline-flex h-11 w-full items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 text-sm font-semibold text-white transition-transform hover:-translate-y-0.5"
-                    : "mt-6 inline-flex h-11 w-full items-center justify-center rounded-full border border-slate-300 text-sm font-semibold text-slate-900 hover:border-emerald-300 hover:bg-emerald-50"
-                }
-              >
-                {t.cta}
-              </Link>
-              <ul className="mt-6 space-y-3 text-sm">
-                {t.features.map((f) => (
-                  <li key={f} className="flex items-start gap-2 text-slate-700">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500">
-                      <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                    {f}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </div>
-        <div className="mt-10 flex justify-center">
-          <Link
-            href="/pricing"
-            className="inline-flex items-center gap-2 text-sm font-semibold text-emerald-700 hover:text-emerald-800"
-          >
-            Compare all plans
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
-              <path d="M5 12h14M13 5l7 7-7 7" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </Link>
-        </div>
-      </Section>
-
-      <Section>
         <SectionHeading eyebrow="FAQ" title="Answers to the usual questions." />
         <Faq items={faqItems} />
       </Section>
