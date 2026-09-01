@@ -8,6 +8,7 @@ import { Contact, Message, PaginatedResponse } from '@/lib/types'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { MessageComposer } from '@/components/chat/message-composer'
+import { isSameThread } from '@/lib/utils'
 
 export default function ChatsPage() {
   const { user } = useAuth()
@@ -18,7 +19,9 @@ export default function ChatsPage() {
   const [messages, setMessages] = useState<Message[]>([])
   const [loadingMessages, setLoadingMessages] = useState(false)
   const [showMobileChat, setShowMobileChat] = useState(false)
+  const [atBottom, setAtBottom] = useState(true)
   const bottomRef = useRef<HTMLDivElement>(null)
+  const prevCount = useRef(0)
 
   const fetchContacts = useCallback(async () => {
     if (!companyId) return
@@ -32,31 +35,39 @@ export default function ChatsPage() {
 
   useEffect(() => { fetchContacts() }, [fetchContacts])
 
-  const fetchMessages = useCallback(async (contactId: number) => {
+  const fetchMessages = useCallback(async (contactId: number, silent = false) => {
     if (!companyId) return
-    setLoadingMessages(true)
+    // Background polls must not toggle the loader, or the whole thread unmounts
+    // and re-mounts every 8s — which is what made the chat visibly "refresh".
+    if (!silent) setLoadingMessages(true)
     try {
       const res = await api.get(`/companies/${companyId}/contacts/${contactId}/messages`)
-      setMessages(res.data.messages)
+      const next: Message[] = res.data.messages
+      setMessages(prev => (isSameThread(prev, next) ? prev : next))
     } catch { /* silent */ }
-    finally { setLoadingMessages(false) }
+    finally { if (!silent) setLoadingMessages(false) }
   }, [companyId])
 
   const selectContact = (contact: Contact) => {
     setSelectedContact(contact)
     setShowMobileChat(true)
+    setAtBottom(true)
     fetchMessages(contact.id)
   }
 
   useEffect(() => {
     if (!selectedContact) return
-    const interval = setInterval(() => fetchMessages(selectedContact.id), 8000)
+    const interval = setInterval(() => fetchMessages(selectedContact.id, true), 8000)
     return () => clearInterval(interval)
   }, [selectedContact, fetchMessages])
 
+  // Only follow the conversation down when something new arrived and the reader
+  // is already at the bottom — otherwise scrolling up to read history gets undone.
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
+    const grew = messages.length > prevCount.current
+    prevCount.current = messages.length
+    if (grew && atBottom) bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages, atBottom])
 
   const displayName = (c: Contact) => c.name || c.whatsapp_profile_name || `+${c.phone}`
   const lastMsg = (c: Contact) => {
@@ -190,7 +201,13 @@ export default function ChatsPage() {
               </Badge>
             </div>
 
-            <div className="flex-1 overflow-auto bg-[#f0f2f5] px-4 sm:px-6 py-4">
+            <div
+              className="flex-1 overflow-auto bg-[#f0f2f5] px-4 sm:px-6 py-4"
+              onScroll={e => {
+                const el = e.currentTarget
+                setAtBottom(el.scrollHeight - el.scrollTop - el.clientHeight < 80)
+              }}
+            >
               {loadingMessages ? (
                 <div className="flex items-center justify-center h-full">
                   <div className="flex gap-1">

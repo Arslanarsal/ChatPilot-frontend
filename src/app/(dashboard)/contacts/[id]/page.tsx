@@ -10,6 +10,7 @@ import { Contact, Message } from '@/lib/types'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { MessageComposer } from '@/components/chat/message-composer'
+import { isSameThread } from '@/lib/utils'
 
 export default function ChatViewPage() {
   const { user } = useAuth()
@@ -17,7 +18,9 @@ export default function ChatViewPage() {
   const contactId = params.id as string
   const [contact, setContact] = useState<Contact | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
+  const [atBottom, setAtBottom] = useState(true)
   const bottomRef = useRef<HTMLDivElement>(null)
+  const prevCount = useRef(0)
   const companyId = user?.company_id
 
   const fetchMessages = useCallback(async () => {
@@ -25,12 +28,21 @@ export default function ChatViewPage() {
     try {
       const res = await api.get(`/companies/${companyId}/contacts/${contactId}/messages`)
       setContact(res.data.contact)
-      setMessages(res.data.messages)
+      const next: Message[] = res.data.messages
+      // Keep the previous array when nothing changed, so the 8s poll does not
+      // re-render (and re-animate) the whole conversation.
+      setMessages(prev => (isSameThread(prev, next) ? prev : next))
     } catch { /* silent */ }
   }, [companyId, contactId])
 
   useEffect(() => { fetchMessages() }, [fetchMessages])
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
+
+  // Follow new messages down only when the reader is already at the bottom.
+  useEffect(() => {
+    const grew = messages.length > prevCount.current
+    prevCount.current = messages.length
+    if (grew && atBottom) bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages, atBottom])
 
   useEffect(() => {
     const interval = setInterval(fetchMessages, 8000)
@@ -69,7 +81,13 @@ export default function ChatViewPage() {
         </Badge>
       </div>
 
-      <div className="flex-1 overflow-auto bg-[#f0f2f5] px-4 sm:px-8 py-4">
+      <div
+        className="flex-1 overflow-auto bg-[#f0f2f5] px-4 sm:px-8 py-4"
+        onScroll={e => {
+          const el = e.currentTarget
+          setAtBottom(el.scrollHeight - el.scrollTop - el.clientHeight < 80)
+        }}
+      >
         <div className="max-w-3xl mx-auto space-y-1">
           {grouped.map((group, gi) => (
             <div key={gi}>
